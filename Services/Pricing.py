@@ -1,4 +1,4 @@
-from db import cursor
+from db.db import cursor
 
 
 def calculate_surge(lat, lng):
@@ -7,13 +7,13 @@ def calculate_surge(lat, lng):
     available = cursor.execute("""
         SELECT COUNT(*) as count
         FROM Drivers
-        WHERE status = 'AVAILABLE'
+        WHERE status = 'available'
     """).fetchone()["count"]
 
     active_trips = cursor.execute("""
         SELECT COUNT(*) as count
         FROM Trips
-        WHERE status = 'REQUESTED'
+        WHERE status = 'requested'
     """).fetchone()["count"]
 
     if available == 0:

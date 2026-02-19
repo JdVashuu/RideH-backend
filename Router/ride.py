@@ -20,7 +20,7 @@ def request_ride(data: RideRequest):
     trip_id = create_trip(
         rider_id=data.rider_id,
         driver_id=driver["Driver_id"],
-        pickup_lat="data.pickup_lat",
+        pickup_lat=data.pickup_lat,
         pickup_lng=data.pickup_lng,
         drop_lat=data.drop_lat,
         drop_lng=data.drop_lng,
@@ -29,7 +29,7 @@ def request_ride(data: RideRequest):
 
     return RideResponse(
         trip_id=trip_id,
-        status="MATCHED",
+        status="matched",
         driver_id=driver["Driver_id"],
         eta=eta,
         surge_multiplier=surge_multiplier,

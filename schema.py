@@ -7,12 +7,12 @@ class RideRequest(BaseModel):
     pickup_lng: float
     drop_lat: float
     drop_lng: float
-    vehicle_type: float
+    vehicle_type: str 
 
 
 class RideResponse(BaseModel):
     trip_id: str
     status: str
     driver_id: str
-    eta: str
+    eta: int
     surge_multiplier: float

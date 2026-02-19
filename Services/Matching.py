@@ -1,18 +1,20 @@
 import os
 import random
-import sqlite3
 from math import atan2, cos, radians, sin, sqrt
 
 import geohash2
 import osmnx as ox
 
-db_path = os.path.join(os.path.dirname(__file__), "db", "ride_hailing.db")
-conn = sqlite3.connect(db_path)
-conn.row_factory = sqlite3.Row
-cursor = conn.cursor()
+from db.db import conn, cursor
 
-G = ox.load_graphml("bengaluru.graphml")
-print("Loaded city : Bengaluru")
+# import sqlite3
+# db_path = os.path.join(os.path.dirname(__file__), "db", "ride_hailing.db")
+# conn = sqlite3.connect(db_path)
+# conn.row_factory = sqlite3.Row
+# cursor = conn.cursor()
+
+# G = ox.load_graphml("bengaluru.graphml")
+# print("Loaded city : Bengaluru")
 
 
 # Find nearby drivers
@@ -54,7 +56,7 @@ def haversineDist(lat1, lng1, lat2, lng2, precision):
 def filterDrivers(drivers, vehtype_req):
     filtered = []
     for driver in drivers:
-        if driver["Status"] == "AVAILABLE" and driver["Veh_type"] == vehtype_req:
+        if driver["Status"] == "available" and driver["Veh_Type"].lower() == vehtype_req.lower():
             filtered.append(driver)
 
     return filtered
@@ -74,6 +76,10 @@ def Score_RankDrivers(lat_u, lng_u, vehtype_req):
     user_geohash = geohash2.encode(lat_u, lng_u, precision=8)
     available_drivers = FindDrivers(user_geohash)
     filtered_drivers = filterDrivers(available_drivers, vehtype_req)
+
+    print(f"DEBUG: Found {len(available_drivers)} drivers in geohash region.")
+    print(f"DEBUG: {len(filtered_drivers)} drivers match vehicle type {vehtype_req}")
+
     ranked_results = []
 
     for driver in filtered_drivers:
@@ -103,19 +109,21 @@ def Score_RankDrivers(lat_u, lng_u, vehtype_req):
 
 def match_driver(lat, lng, vehicle_type):
     ranked = Score_RankDrivers(lat, lng, vehicle_type)
+    print(len(ranked))
 
     for driver in ranked:
         res = cursor.execute(
             """
                 UPDATE Drivers
-                SET status = 'OFFERED'
-                WHERE id = ?
-                AND status = 'AVAILABLE'
+                SET status = 'offered'
+                WHERE Driver_id = ?
+                AND status = 'available'
             """,
-            (driver["id"],),
+            (driver["Driver_id"],),
         )
 
         if res.rowcount == 1:
+            conn.commit()
             return driver, driver["ETA"]
 
     return None, None
