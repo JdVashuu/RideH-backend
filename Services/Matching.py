@@ -3,18 +3,8 @@ import random
 from math import atan2, cos, radians, sin, sqrt
 
 import geohash2
-import osmnx as ox
 
 from db.db import conn, cursor
-
-# import sqlite3
-# db_path = os.path.join(os.path.dirname(__file__), "db", "ride_hailing.db")
-# conn = sqlite3.connect(db_path)
-# conn.row_factory = sqlite3.Row
-# cursor = conn.cursor()
-
-# G = ox.load_graphml("bengaluru.graphml")
-# print("Loaded city : Bengaluru")
 
 
 # Find nearby drivers
@@ -56,7 +46,10 @@ def haversineDist(lat1, lng1, lat2, lng2, precision):
 def filterDrivers(drivers, vehtype_req):
     filtered = []
     for driver in drivers:
-        if driver["Status"] == "available" and driver["Veh_Type"].lower() == vehtype_req.lower():
+        if (
+            driver["Status"] == "available"
+            and driver["Veh_Type"].lower() == vehtype_req.lower()
+        ):
             filtered.append(driver)
 
     return filtered
@@ -100,6 +93,7 @@ def Score_RankDrivers(lat_u, lng_u, vehtype_req):
 
         driver_info["calculated_score"] = score
         driver_info["ETA"] = int(ETA)
+        driver_info["Distance"] = proximity
 
         ranked_results.append(driver_info)
 
@@ -109,24 +103,26 @@ def Score_RankDrivers(lat_u, lng_u, vehtype_req):
 
 def match_driver(lat, lng, vehicle_type):
     ranked = Score_RankDrivers(lat, lng, vehicle_type)
-    print(len(ranked))
 
     for driver in ranked:
+        # Atomic Update : only update is status is still available
         res = cursor.execute(
             """
                 UPDATE Drivers
-                SET status = 'offered'
+                SET status = 'matched'
                 WHERE Driver_id = ?
                 AND status = 'available'
             """,
             (driver["Driver_id"],),
         )
 
+        # In case of multiple requests for same driver, rowcount = 1 indicates we won
         if res.rowcount == 1:
             conn.commit()
-            return driver, driver["ETA"]
+            return driver, driver["ETA"], driver["Distance"]
+        # If row count = 0, means someone else won this driver thus removing race condition.
 
-    return None, None
+    return None, None, None
 
 
 #   main -> score_RankDriver -> [(FindDriver -> filterDrivers), calculateEta]

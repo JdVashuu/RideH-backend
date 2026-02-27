@@ -16,3 +16,13 @@ def get_connection():
 
 conn = get_connection()
 cursor = conn.cursor()
+
+
+def sqlite_execute(query, params=()):
+    cursor.execute(query, params)
+    conn.commit()
+
+
+def sqlite_query(query, params=()):
+    cursor.execute(query, params)
+    return cursor.fetchall()
