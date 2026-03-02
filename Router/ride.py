@@ -1,12 +1,16 @@
+import asyncio
 import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from db.db import sqlite_execute, sqlite_query
+from db.db import sqlite_execute, sqlite_fetchone, sqlite_query
 from schema import RideAccept, RideArrived, RideCancel, RideRequest, RideResponse
+from Services.DriverSimulation import simulate_driver
 from Services.Matching import match_driver
 from Services.Pricing import calculate_surge
-from Services.Trips import create_trip
+from Services.RouteService import generate_route
+from Services.Trips import create_trip, start_trip
+from Services.WebSocketManager import manager
 
 router = APIRouter()
 
@@ -81,14 +85,17 @@ def ride_arrived(data: RideArrived):
 
 
 @router.post("/ride/start/{trip_id}")
-def ride_start(trip_id: str):
+async def ride_start(trip_id: str):
     start_time = datetime.datetime.now()
 
     sqlite_execute(
         "UPDATE Trips SET Status = 'started', Started_at = ? WHERE Trip_id = ?",
         (start_time.isoformat(), trip_id),
     )
-    return {"status": "started", "time": start_time, "trip_id": trip_id}
+
+    await start_trip(trip_id)
+
+    return {"status": "started", "time": start_time, "route_points": len(route)}
 
 
 @router.post("/ride/complete/{trip_id}")
@@ -146,3 +153,18 @@ def ride_cancel(data: RideCancel):
     )
 
     return {"status": "cancelled", "time": cancel_time}
+
+
+@router.websocket(f"/ws/trip/{trip_id}")
+async def trip_socket(websocket: WebSocket, trip_id: str):
+    await manager.connect(trip_id, websocket)
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            # Sending location to rider
+            await manager.send_location(trip_id, data)
+
+    except WebSocketDisconnect:
+        manager.disconnect(trip_id)

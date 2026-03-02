@@ -26,3 +26,8 @@ def sqlite_execute(query, params=()):
 def sqlite_query(query, params=()):
     cursor.execute(query, params)
     return cursor.fetchall()
+
+
+def sqlite_fetchone(query, params=()):
+    cursor.execute(query, params)
+    return cursor.fetchone()
