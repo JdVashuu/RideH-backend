@@ -12,6 +12,6 @@ def generate_route(pickup_lat, pickup_lng, drop_lat, drop_lng):
 
     route = nx.shortest_path(G, origin, destination, weight="length")
 
-    coords = [(G.nodes[node]["y"], G.nodes["x"][node]) for node in route]
+    coords = [(G.nodes[node]["y"], G.nodes[node]["x"]) for node in route]
 
     return coords

@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from db.db import cursor
+from db.db import sqlite_execute
 from schema import FareCreate
 
 
@@ -12,16 +12,16 @@ def basefare(distance):
 
 def create_fare(fare: FareCreate):
     fare_id = str(uuid.uuid4())
-    cursor.execute(
+    sqlite_execute(
         """
-        INSERT INTO Fares (
-            Fare_id,
-            Base_fare,
-            Distance,
-            Duration,
-            Surge_multiplier,
-            Currency,
-            Created_at
+        INSERT INTO "Fares" (
+            "Fare_id",
+            "Base_fare",
+            "Distance",
+            "Duration",
+            "Surge_multiplier",
+            "Currency",
+            "Created_at"
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """,

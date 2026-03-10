@@ -3,3 +3,5 @@ cache/
 .DS_Store
 bengaluru.graphml
 test_endpoints.py
+.env
+db/ride_hailing.db

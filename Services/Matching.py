@@ -4,24 +4,27 @@ from math import atan2, cos, radians, sin, sqrt
 
 import geohash2
 
-from db.db import conn, cursor
+from db.db import (
+    get_connection,
+    release_connection,
+    sqlite_query,
+)
 
 
 # Find nearby drivers
 def FindDrivers(user_geohash):
-    # we have to find drivers where the geohash is same till the first 5 characters
-    search_region = user_geohash[:-3] + "%"
-    query = """
-        SELECT * FROM Drivers
-        WHERE geohash LIKE ?
-    """
+    # precision 5 - 4.9km x 4.9km
+    # precision 4 - 39km x 19km
 
-    res = cursor.execute(query, (search_region,))
-    drivers = res.fetchall()
+    precisions = [5, 4]
 
-    # rewrite this to put vehicle type and checking if status is available
-
-    return drivers
+    for p in precisions:
+        search_region = user_geohash[:p] + "%"
+        query = 'SELECT * FROM "Drivers" WHERE "geohash" LIKE %s'
+        drivers = sqlite_query(query, (search_region,))
+        if len(drivers) > 10:
+            print(f"DEBUG: Found {len(drivers)} drivers at precision {p}")
+            return drivers
 
 
 def haversineDist(lat1, lng1, lat2, lng2, precision):
@@ -45,6 +48,7 @@ def haversineDist(lat1, lng1, lat2, lng2, precision):
 # Filter drivers with constraints
 def filterDrivers(drivers, vehtype_req):
     filtered = []
+    print(f"DEBUG: Filtering {len(drivers)} drivers for vehicle type: '{vehtype_req}'")
     for driver in drivers:
         if (
             driver["Status"] == "available"
@@ -106,21 +110,27 @@ def match_driver(lat, lng, vehicle_type):
 
     for driver in ranked:
         # Atomic Update : only update is status is still available
-        res = cursor.execute(
-            """
-                UPDATE Drivers
-                SET status = 'matched'
-                WHERE Driver_id = ?
-                AND status = 'available'
-            """,
-            (driver["Driver_id"],),
-        )
+        conn = get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                        UPDATE "Drivers"
+                        SET "Status" = 'matched'
+                        WHERE "Driver_id" = %s
+                        AND "Status" = 'available'
+                    """,
+                    (driver["Driver_id"],),
+                )
 
-        # In case of multiple requests for same driver, rowcount = 1 indicates we won
-        if res.rowcount == 1:
-            conn.commit()
-            return driver, driver["ETA"], driver["Distance"]
-        # If row count = 0, means someone else won this driver thus removing race condition.
+                # In case of multiple requests for same driver, rowcount = 1 indicates we won
+                if cursor.rowcount == 1:
+                    conn.commit()
+                    return driver, driver["ETA"], driver["Distance"]
+                else:
+                    conn.rollback()
+        finally:
+            release_connection(conn)
 
     return None, None, None
 

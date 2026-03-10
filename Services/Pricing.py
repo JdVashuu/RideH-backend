@@ -1,20 +1,22 @@
-from db.db import cursor
+from db.db import sqlite_fetchone
 
 
 def calculate_surge(lat, lng):
 
     # Simple supply-demand simulation
-    available = cursor.execute("""
+    available_res = sqlite_fetchone("""
         SELECT COUNT(*) as count
-        FROM Drivers
-        WHERE status = 'available'
-    """).fetchone()["count"]
+        FROM "Drivers"
+        WHERE "Status" = 'available'
+    """)
+    available = available_res["count"] if available_res else 0
 
-    active_trips = cursor.execute("""
+    active_trips_res = sqlite_fetchone("""
         SELECT COUNT(*) as count
-        FROM Trips
-        WHERE status = 'requested'
-    """).fetchone()["count"]
+        FROM "Trips"
+        WHERE "Status" = 'requested'
+    """)
+    active_trips = active_trips_res["count"] if active_trips_res else 0
 
     if available == 0:
         return 2.0
